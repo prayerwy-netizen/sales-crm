@@ -54,16 +54,26 @@ const columns = [
   },
   {
     key: 'lastContactDate',
-    title: '最近沟通',
+    title: '活跃度',
     render: (row: Customer) => {
-      if (!row.lastContactDate) return '-';
+      if (!row.lastContactDate) return <span className="text-slate-300">-</span>;
       const days = Math.floor(
         (Date.now() - new Date(row.lastContactDate).getTime()) /
           (1000 * 60 * 60 * 24)
       );
-      const color =
-        days > 60 ? 'text-danger' : days > 30 ? 'text-warning' : 'text-slate-700';
-      return <span className={color}>{row.lastContactDate}</span>;
+      const dot = days > 60
+        ? 'bg-red-500'
+        : days > 30
+        ? 'bg-amber-400'
+        : 'bg-emerald-500';
+      const label = days > 60 ? '沉默' : days > 30 ? '一般' : '活跃';
+      return (
+        <div className="flex items-center gap-2">
+          <span className={`inline-block h-2 w-2 rounded-full ${dot}`} />
+          <span className="text-xs text-slate-500">{label}</span>
+          <span className="text-xs text-slate-400">{row.lastContactDate}</span>
+        </div>
+      );
     },
   },
 ];

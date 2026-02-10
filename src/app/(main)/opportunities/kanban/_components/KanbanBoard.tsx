@@ -17,18 +17,37 @@ export function KanbanBoard({ initialOpportunities }: KanbanBoardProps) {
     setOpportunities(initialOpportunities);
   }, [initialOpportunities]);
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     const { draggableId, destination, source } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
+    const newStage = destination.droppableId as Opportunity['stage'];
+
+    // 乐观更新本地状态
     setOpportunities((prev) =>
       prev.map((opp) =>
-        opp.id === draggableId
-          ? { ...opp, stage: destination.droppableId as Opportunity['stage'] }
-          : opp
+        opp.id === draggableId ? { ...opp, stage: newStage } : opp
       )
     );
+
+    // 持久化到后端
+    try {
+      await fetch(`/api/opportunities/${draggableId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage: newStage }),
+      });
+    } catch {
+      // 回滚
+      setOpportunities((prev) =>
+        prev.map((opp) =>
+          opp.id === draggableId
+            ? { ...opp, stage: source.droppableId as Opportunity['stage'] }
+            : opp
+        )
+      );
+    }
   };
 
   return (

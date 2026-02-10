@@ -18,20 +18,26 @@ export function OpportunityCard({ opportunity, onClick }: OpportunityCardProps) 
   );
   const isDueSoon = daysUntilClose >= 0 && daysUntilClose <= 14 && !hasRisk;
 
+  const wr = opportunity.winRate;
+  const winRateColor = wr >= 0.7 ? 'text-emerald-600' : wr >= 0.4 ? 'text-amber-600' : 'text-red-500';
+  const barColor = wr >= 0.7 ? 'bg-emerald-400' : wr >= 0.4 ? 'bg-amber-400' : 'bg-red-400';
+
   return (
     <div
       onClick={onClick}
       className={cn(
-        'glass-card p-3 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
+        'glass-card p-3 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 relative overflow-hidden',
         hasRisk && 'border-danger/40 ring-1 ring-danger/20',
         isDueSoon && 'border-warning/40 ring-1 ring-warning/20'
       )}
     >
+      {/* 赢单率左侧色条 */}
+      <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l', barColor)} />
       <div className="flex items-start justify-between mb-2">
         <h4 className="text-sm font-medium text-slate-800 line-clamp-1 flex-1">
           {opportunity.name}
         </h4>
-        <span className="text-xs font-semibold text-primary ml-2">
+        <span className={cn('text-xs font-semibold ml-2', winRateColor)}>
           {Math.round(opportunity.winRate * 100)}%
         </span>
       </div>

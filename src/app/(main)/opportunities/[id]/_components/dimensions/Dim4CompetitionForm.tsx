@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { SelfAssessment, ActionPlanTable, ScorePanel } from './shared';
 import type { ActionPlanItem } from './shared';
 import { useAIActionPlans } from '@/hooks/useAIActionPlans';
@@ -68,6 +68,8 @@ export function Dim4CompetitionForm({ opportunityId }: { opportunityId?: string 
   const [ourStrategy, setOurStrategy] = useState('');
   const [selfGrade, setSelfGrade] = useState('');
   const [actionPlans, setActionPlans] = useState<ActionPlanItem[]>([]);
+  const [strategyLoading, setStrategyLoading] = useState(false);
+  const [strategyData, setStrategyData] = useState<any>(null);
 
   const { initialData, saveData } = useDimensionPersistence(opportunityId, 'dim4');
 
@@ -120,6 +122,29 @@ export function Dim4CompetitionForm({ opportunityId }: { opportunityId?: string 
     return { compScore, stratScore, total: parseFloat(total.toFixed(1)) };
   }, [comparisonResult, strategyDirection]);
 
+  const handleAIStrategy = async () => {
+    setStrategyLoading(true);
+    try {
+      const res = await fetch('/api/ai/competitive-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ourStrengths,
+          ourWeaknesses,
+          competitors: competitors.filter((c) => c.name),
+          comparisonResult,
+          strategyDirection,
+        }),
+      });
+      const data = await res.json();
+      setStrategyData(data);
+    } catch {
+      setStrategyData(null);
+    } finally {
+      setStrategyLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
@@ -165,9 +190,19 @@ export function Dim4CompetitionForm({ opportunityId }: { opportunityId?: string 
 
       {/* 策略描述 */}
       <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-slate-700">策略分析</label>
+          <Button variant="outline" size="sm" onClick={handleAIStrategy} disabled={strategyLoading}>
+            {strategyLoading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+            AI竞争策略
+          </Button>
+        </div>
         <TextArea label="竞争对手策略" placeholder="分析竞争对手可能采取的策略..." value={theirStrategy} onChange={setTheirStrategy} />
         <TextArea label="我方应对策略" placeholder="我方针对竞争的应对策略..." value={ourStrategy} onChange={setOurStrategy} />
       </div>
+
+      {/* AI 竞争策略结果 */}
+      {strategyData && <AIStrategyResult data={strategyData} />}
 
       <ScorePanel
         items={[
@@ -219,6 +254,53 @@ function TextArea({ label, placeholder, value, onChange }: {
       <label className="block text-sm font-medium text-slate-700">{label}</label>
       <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+    </div>
+  );
+}
+
+function AIStrategyResult({ data }: { data: any }) {
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+      <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+        <Sparkles className="h-4 w-4 text-primary" />
+        AI 竞争应对策略
+      </h4>
+
+      {data.summary && (
+        <p className="text-xs text-slate-600 bg-white/80 p-2 rounded">{data.summary}</p>
+      )}
+
+      {data.strategies?.map((s: any, i: number) => (
+        <div key={i} className="bg-white/80 rounded p-3 space-y-1.5">
+          <p className="text-xs font-semibold text-slate-700">{s.title}</p>
+          <p className="text-xs text-slate-500">{s.description}</p>
+          <ul className="space-y-0.5">
+            {s.tactics?.map((t: string, j: number) => (
+              <li key={j} className="text-xs text-slate-600">• {t}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {data.differentiators?.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-slate-500 mb-1">差异化优势</p>
+          <div className="flex flex-wrap gap-1.5">
+            {data.differentiators.map((d: string, i: number) => (
+              <span key={i} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{d}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.risks?.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-slate-500 mb-1">潜在风险</p>
+          {data.risks.map((r: string, i: number) => (
+            <p key={i} className="text-xs text-amber-700">⚠ {r}</p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

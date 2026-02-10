@@ -12,7 +12,8 @@ import { useDataItem, useDataList } from '@/hooks/useData';
 import type { Customer, Stakeholder } from '@/types/customer';
 import type { Opportunity, CommunicationRecord } from '@/types/opportunity';
 import { CUSTOMER_TIERS, CUSTOMER_CATEGORIES, MINE_TYPES } from '@/lib/constants';
-import { ArrowLeft, Sparkles, Pencil } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { ArrowLeft, Sparkles, Pencil, Loader2 } from 'lucide-react';
 
 const tierMap = Object.fromEntries(CUSTOMER_TIERS.map((t) => [t.key, t]));
 const mineMap = Object.fromEntries(MINE_TYPES.map((m) => [m.key, m.label]));
@@ -28,6 +29,9 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('basic');
+  const [showPlan, setShowPlan] = useState(false);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planData, setPlanData] = useState<any>(null);
 
   const id = params.id as string;
   const { data: customer } = useDataItem<Customer>(`/api/customers/${id}`);
@@ -44,6 +48,32 @@ export default function CustomerDetailPage() {
   }
 
   const tier = tierMap[customer.tier];
+
+  const handleGeneratePlan = async () => {
+    setPlanLoading(true);
+    setShowPlan(true);
+    try {
+      const res = await fetch('/api/ai/marketing-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customer.name,
+          mineType: customer.mineType,
+          region: customer.region,
+          tier: customer.tier,
+          annualCapacity: customer.annualCapacity,
+          group: customer.group,
+          opportunityCount: customer.opportunityCount,
+        }),
+      });
+      const data = await res.json();
+      setPlanData(data);
+    } catch {
+      setPlanData(null);
+    } finally {
+      setPlanLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -66,8 +96,8 @@ export default function CustomerDetailPage() {
             {mineMap[customer.mineType]} · {customer.region}
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Sparkles className="h-4 w-4 mr-1" />
+        <Button variant="outline" size="sm" onClick={handleGeneratePlan} disabled={planLoading}>
+          {planLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
           生成营销方案
         </Button>
       </div>
@@ -86,6 +116,20 @@ export default function CustomerDetailPage() {
           <AICustomerProfile customer={customer} />
         </div>
       </div>
+
+      {/* 营销方案弹窗 */}
+      <Modal open={showPlan} onClose={() => setShowPlan(false)} title="AI 营销方案">
+        {planLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="ml-2 text-sm text-slate-500">正在生成营销方案...</span>
+          </div>
+        ) : planData ? (
+          <MarketingPlanContent data={planData} />
+        ) : (
+          <p className="text-sm text-slate-400 text-center py-8">生成失败，请重试</p>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -247,5 +291,55 @@ function CommsList({ records }: { records: CommunicationRecord[] }) {
         </div>
       )}
     </GlassCard>
+  );
+}
+
+function MarketingPlanContent({ data }: { data: any }) {
+  return (
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+      {data.title && (
+        <h3 className="text-base font-bold text-slate-800">{data.title}</h3>
+      )}
+      {data.summary && (
+        <p className="text-sm text-slate-600 bg-blue-50 p-3 rounded-lg">{data.summary}</p>
+      )}
+
+      {data.strategies?.map((s: any, i: number) => (
+        <div key={i} className="border border-slate-200 rounded-lg p-3">
+          <h4 className="text-sm font-semibold text-slate-800 mb-1">
+            策略{i + 1}：{s.name}
+          </h4>
+          <p className="text-xs text-slate-500 mb-2">{s.description}</p>
+          <ul className="space-y-1">
+            {s.actions?.map((a: string, j: number) => (
+              <li key={j} className="text-xs text-slate-600 flex items-start gap-1.5">
+                <span className="text-primary mt-0.5">•</span>
+                {a}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {data.keyMessages?.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-slate-800 mb-2">核心卖点</h4>
+          <div className="flex flex-wrap gap-2">
+            {data.keyMessages.map((msg: string, i: number) => (
+              <span key={i} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                {msg}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.timeline && (
+        <div className="bg-slate-50 p-3 rounded-lg">
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">推进节奏</h4>
+          <p className="text-sm text-slate-700">{data.timeline}</p>
+        </div>
+      )}
+    </div>
   );
 }
