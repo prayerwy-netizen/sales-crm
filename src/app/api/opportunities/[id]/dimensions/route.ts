@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
+import { getAdminClient, isSupabaseConfigured } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     );
   }
 
-  const { data, error } = await supabaseAdmin!
+  const { data, error } = await getAdminClient()!
     .from('sales_crm_dimension_data')
     .select('*')
     .eq('opportunity_id', id);
@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     );
   }
 
-  const { data, error } = await supabaseAdmin!
+  const { data, error } = await getAdminClient()!
     .from('sales_crm_dimension_data')
     .upsert(
       {
