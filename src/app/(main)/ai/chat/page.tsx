@@ -1,7 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+import { Suspense } from 'react';
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MessageBubble } from './_components/MessageBubble';
@@ -27,7 +26,7 @@ const initialMessages: Message[] = [
   },
 ];
 
-export default function AIChatPage() {
+function AIChatContent() {
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -222,4 +221,8 @@ export default function AIChatPage() {
       </div>
     </div>
   );
+}
+
+export default function AIChatPage() {
+  return <Suspense><AIChatContent /></Suspense>;
 }
