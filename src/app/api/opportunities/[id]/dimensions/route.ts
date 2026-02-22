@@ -27,14 +27,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({
-    data,
-    _debug: {
-      id,
-      url: (process.env.NEXT_PUBLIC_SUPABASE_URL || '').slice(0, 30),
-      key_type: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service' : 'anon',
-    },
-  }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ data }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 // PUT: 保存/更新维度数据
