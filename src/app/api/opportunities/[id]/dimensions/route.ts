@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient, isSupabaseConfigured } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,18 +7,17 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+function getClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createClient(url, key);
+}
+
 // GET: 获取商机的维度数据
 export async function GET(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
 
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: '未配置 Supabase', data: null },
-      { status: 200 }
-    );
-  }
-
-  const { data, error } = await getAdminClient()!
+  const { data, error } = await getClient()
     .from('sales_crm_dimension_data')
     .select('*')
     .eq('opportunity_id', id);
@@ -35,25 +34,14 @@ export async function GET(req: NextRequest, context: RouteContext) {
 // PUT: 保存/更新维度数据
 export async function PUT(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: '未配置 Supabase' },
-      { status: 503 }
-    );
-  }
-
   const body = await req.json();
   const { dimensionKey, data: dimData, scores } = body;
 
   if (!dimensionKey) {
-    return NextResponse.json(
-      { error: '缺少 dimensionKey' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: '缺少 dimensionKey' }, { status: 400 });
   }
 
-  const { data, error } = await getAdminClient()!
+  const { data, error } = await getClient()
     .from('sales_crm_dimension_data')
     .upsert(
       {
