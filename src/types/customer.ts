@@ -32,6 +32,47 @@ export interface Stakeholder {
   email?: string;
 }
 
+// 基础客户数据库（导入自Excel）
+export interface BaseCustomer {
+  id: string;
+  name: string;
+  legalRepresentative?: string;
+  socialCreditCode?: string;
+  province?: string;
+  city?: string;
+  county?: string;
+  businessType?: string;
+  customerType?: string;
+  detailAddress?: string;
+  customerGrade?: string;
+  creditScore?: number;
+  actualController?: string;
+  secondType?: string;
+  createdAt?: string;
+}
+
+export interface BaseContact {
+  id: string;
+  customerId: string;
+  name: string;
+  phone1?: string;
+  phone2?: string;
+  position?: string;
+  gender?: string;
+}
+
+export interface BaseRelation {
+  id: string;
+  dealerId: string;
+  customerId: string;
+  sharedContactName?: string;
+  sharedContactPhone?: string;
+  dealerName?: string;
+  customerName?: string;
+  dealerType?: string;
+  customerProvince?: string;
+}
+
 export const STAKEHOLDER_ROLES = {
   decision_maker: '关键决策人',
   key_buyer: '关键买家',

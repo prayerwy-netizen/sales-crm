@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { GlassCard } from '@/components/ui';
 import { Sparkles, AlertTriangle, Lightbulb, ArrowRight, RefreshCw } from 'lucide-react';
 import type { Opportunity } from '@/types/opportunity';
+import { SALES_PLAYBOOK } from '@/lib/salesPlaybook';
 
 interface Suggestion {
   type: 'risk' | 'tip' | 'next';
@@ -12,6 +13,7 @@ interface Suggestion {
 
 interface AISuggestionsSidebarProps {
   opportunity: Opportunity;
+  fetchRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 const iconMap = {
@@ -20,17 +22,62 @@ const iconMap = {
   next: { Icon: ArrowRight, bg: 'bg-blue-50 border-blue-100', color: 'text-primary' },
 };
 
-export function AISuggestionsSidebar({ opportunity }: AISuggestionsSidebarProps) {
+function FormulaTooltip({ name }: { name: string }) {
+  const [show, setShow] = useState(false);
+  const formula = SALES_PLAYBOOK.find(
+    (f) => f.name === name || f.name.includes(name) || name.includes(f.name),
+  );
+  if (!formula) return <span>【{name}】</span>;
+
+  return (
+    <span className="relative inline-block">
+      <span
+        className="text-primary font-medium cursor-help border-b border-dashed border-primary/50"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+      >
+        【{name}】
+      </span>
+      {show && (
+        <div className="absolute bottom-full right-0 mb-1.5 z-50 w-64 rounded-lg border border-slate-200 bg-white p-3 shadow-xl text-xs">
+          <p className="font-semibold text-slate-800 mb-1">{formula.name}</p>
+          <p className="font-mono text-[10px] text-primary bg-blue-50 rounded px-1.5 py-1 mb-2 leading-relaxed">{formula.formula}</p>
+          <p className="text-slate-600 mb-2">{formula.summary}</p>
+          {formula.judgmentRules.filter(r => r.level !== 'good').slice(0, 2).map((r, i) => (
+            <p key={i} className="text-slate-500 leading-relaxed">⚠ {r.assessment}</p>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+function renderContent(text: string) {
+  return text.split(/(【[^】]+】)/).map((part, i) => {
+    const match = part.match(/^【([^】]+)】$/);
+    return match ? <FormulaTooltip key={i} name={match[1]} /> : <span key={i}>{part}</span>;
+  });
+}
+
+export function AISuggestionsSidebar({ opportunity, fetchRef }: AISuggestionsSidebarProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchSuggestions = useCallback(async () => {
     setLoading(true);
     try {
+      // 拉取维度评分，供方法论规则匹配使用
+      const dimRes = await fetch(`/api/opportunities/${opportunity.id}/dimensions`);
+      const dimJson = await dimRes.json();
+      const dimensionScores: Record<string, number> = {};
+      for (const r of (dimJson.data || [])) {
+        dimensionScores[r.dimension_key] = r.scores?.contentScore ?? 0;
+      }
+
       const res = await fetch('/api/ai/suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opportunity }),
+        body: JSON.stringify({ opportunity: { ...opportunity, dimensionScores } }),
       });
       const data = await res.json();
       if (data.suggestions) setSuggestions(data.suggestions);
@@ -41,6 +88,10 @@ export function AISuggestionsSidebar({ opportunity }: AISuggestionsSidebarProps)
   useEffect(() => {
     if (opportunity?.id) fetchSuggestions();
   }, [opportunity?.id, fetchSuggestions]);
+
+  useEffect(() => {
+    if (fetchRef) fetchRef.current = fetchSuggestions;
+  }, [fetchRef, fetchSuggestions]);
 
   return (
     <div className="space-y-4">
@@ -65,7 +116,7 @@ export function AISuggestionsSidebar({ opportunity }: AISuggestionsSidebarProps)
               <div key={i} className={`p-2.5 rounded-lg border ${cfg.bg}`}>
                 <div className="flex items-start gap-2">
                   <cfg.Icon className={`h-3.5 w-3.5 ${cfg.color} mt-0.5 shrink-0`} />
-                  <p className="text-xs text-slate-700">{s.content}</p>
+                  <p className="text-xs text-slate-700 leading-relaxed">{renderContent(s.content)}</p>
                 </div>
               </div>
             );

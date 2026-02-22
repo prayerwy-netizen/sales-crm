@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { MessageBubble } from './_components/MessageBubble';
 import { ParsedDataPreview, type ParsedField } from './_components/ParsedDataPreview';
 import { Select } from '@/components/ui/Select';
@@ -25,13 +26,20 @@ const initialMessages: Message[] = [
 ];
 
 export default function AIChatPage() {
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
   const [selectedOpp, setSelectedOpp] = useState('');
+
+  const { data: opportunities } = useDataList<Opportunity>('/api/opportunities');
+
+  useEffect(() => {
+    const id = searchParams.get('opportunityId');
+    if (id) setSelectedOpp(id);
+  }, [searchParams]);
   const [parsedFields, setParsedFields] = useState<ParsedField[]>([]);
   const [sending, setSending] = useState(false);
   const [writing, setWriting] = useState(false);
-  const { data: opportunities } = useDataList<Opportunity>('/api/opportunities');
 
   const now = () => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
@@ -62,7 +70,7 @@ export default function AIChatPage() {
       const res = await fetch('/api/ai/chat-parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, opportunityId: selectedOpp }),
+        body: JSON.stringify({ message: text, opportunityId: selectedOpp, stage: opportunities.find(o => o.id === selectedOpp)?.stage }),
       });
       const data = await res.json();
 

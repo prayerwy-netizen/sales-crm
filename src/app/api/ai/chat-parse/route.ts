@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildPlaybookPrompt } from '@/lib/salesPlaybook';
+import type { StageKey } from '@/lib/constants';
 
 interface ChatParseRequest {
   message: string;
   opportunityId: string;
+  stage?: StageKey;
 }
 
 export async function POST(req: NextRequest) {
@@ -18,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     if (apiKey && baseUrl) {
       try {
-        const result = await callAI(apiKey, baseUrl, body.message);
+        const result = await callAI(apiKey, baseUrl, body.message, body.stage);
         return NextResponse.json(result);
       } catch {
         // AI 调用失败，降级到模板
@@ -33,10 +36,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function callAI(apiKey: string, baseUrl: string, message: string) {
+async function callAI(apiKey: string, baseUrl: string, message: string, stage?: StageKey) {
   const model = process.env.AI_MODEL || 'gemini-3-pro-preview';
+  const playbookContext = stage ? buildPlaybookPrompt(stage) : '';
 
-  const prompt = `你是一位销售CRM数据录入助手。用户会用自然语言描述拜访情况、客户反馈或竞争动态。
+  const prompt = `你是一位销售CRM数据录入助手，精通多套销售方法论。用户会用自然语言描述拜访情况、客户反馈或竞争动态。
 请从用户描述中提取结构化数据，映射到以下十个评估维度：
 
 维度列表：
@@ -50,6 +54,7 @@ async function callAI(apiKey: string, baseUrl: string, message: string) {
 - dim8 附8-交付能力：标准化程度、可交付性、关键节点
 - dim9 附9-报价策略：报价金额、折扣、付款方式
 - dim10 附10-利润率：利润档位、达标情况
+${playbookContext}
 
 用户描述：
 ${message}

@@ -125,6 +125,13 @@ ALTER TABLE sales_crm_opportunities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales_crm_communications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales_crm_resources ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_customers;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_stakeholders;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_partners;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_opportunities;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_communications;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_resources;
+
 CREATE POLICY "Allow all" ON sales_crm_customers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON sales_crm_stakeholders FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON sales_crm_partners FOR ALL USING (true) WITH CHECK (true);
@@ -143,3 +150,74 @@ CREATE INDEX IF NOT EXISTS idx_opportunities_stage ON sales_crm_opportunities(st
 CREATE INDEX IF NOT EXISTS idx_communications_entity ON sales_crm_communications(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_communications_opportunity ON sales_crm_communications(opportunity_id);
 CREATE INDEX IF NOT EXISTS idx_resources_type ON sales_crm_resources(type);
+
+-- ============================================
+-- 基础客户数据库（导入自客户信息Excel）
+-- ============================================
+
+-- 7. 基础客户表（客户主数据）
+CREATE TABLE IF NOT EXISTS sales_crm_base_customers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  legal_representative TEXT,
+  social_credit_code TEXT,
+  province TEXT,
+  city TEXT,
+  county TEXT,
+  business_type TEXT,
+  customer_type TEXT,
+  detail_address TEXT,
+  customer_grade TEXT,
+  credit_score INTEGER,
+  actual_controller TEXT,
+  second_type TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 8. 基础联系人表
+CREATE TABLE IF NOT EXISTS sales_crm_base_contacts (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  customer_id TEXT NOT NULL REFERENCES sales_crm_base_customers(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  phone1 TEXT,
+  phone2 TEXT,
+  position TEXT,
+  gender TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS
+ALTER TABLE sales_crm_base_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales_crm_base_contacts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_base_customers;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_base_contacts;
+CREATE POLICY "Allow all" ON sales_crm_base_customers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON sales_crm_base_contacts FOR ALL USING (true) WITH CHECK (true);
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_base_customers_province ON sales_crm_base_customers(province);
+CREATE INDEX IF NOT EXISTS idx_base_customers_business_type ON sales_crm_base_customers(business_type);
+CREATE INDEX IF NOT EXISTS idx_base_customers_customer_type ON sales_crm_base_customers(customer_type);
+CREATE INDEX IF NOT EXISTS idx_base_customers_grade ON sales_crm_base_customers(customer_grade);
+CREATE INDEX IF NOT EXISTS idx_base_customers_controller ON sales_crm_base_customers(actual_controller);
+CREATE INDEX IF NOT EXISTS idx_base_customers_name ON sales_crm_base_customers(name);
+CREATE INDEX IF NOT EXISTS idx_base_contacts_customer ON sales_crm_base_contacts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_base_contacts_phone ON sales_crm_base_contacts(phone1);
+
+-- 9. 渠道关联关系表（经销商/总集成商 ↔ 终端客户）
+CREATE TABLE IF NOT EXISTS sales_crm_base_relations (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  dealer_id TEXT NOT NULL REFERENCES sales_crm_base_customers(id) ON DELETE CASCADE,
+  customer_id TEXT NOT NULL REFERENCES sales_crm_base_customers(id) ON DELETE CASCADE,
+  shared_contact_name TEXT,
+  shared_contact_phone TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(dealer_id, customer_id)
+);
+
+ALTER TABLE sales_crm_base_relations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON sales_crm_base_relations;
+CREATE POLICY "Allow all" ON sales_crm_base_relations FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_base_relations_dealer ON sales_crm_base_relations(dealer_id);
+CREATE INDEX IF NOT EXISTS idx_base_relations_customer ON sales_crm_base_relations(customer_id);

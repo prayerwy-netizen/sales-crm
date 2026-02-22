@@ -17,6 +17,7 @@ import {
   Sparkles,
   BarChart3,
   FolderOpen,
+  Database,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -44,6 +45,7 @@ const navItems: NavItem[] = [
     children: [
       { label: '终端客户', href: '/customers' },
       { label: '生态合作伙伴', href: '/partners' },
+      { label: '基础客户库', href: '/customers/base' },
       { label: '沟通记录', href: '/customers/communications' },
       { label: '客户统计', href: '/customers/stats' },
     ],

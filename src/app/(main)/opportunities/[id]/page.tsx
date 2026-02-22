@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { TabNavigation } from '@/components/ui/TabNavigation';
@@ -34,6 +34,7 @@ export default function OpportunityDetailPage() {
   const [showValidation, setShowValidation] = useState(false);
   const [missingDims, setMissingDims] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState<StageKey>('lead');
+  const aiSuggestionsRef = useRef<(() => void) | null>(null);
 
   const id = params.id as string;
   const { data: opportunity, refetch: refetchOpp } = useDataItem<Opportunity>(`/api/opportunities/${id}`);
@@ -169,11 +170,11 @@ export default function OpportunityDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => router.push(`/ai/chat?opportunityId=${id}`)}>
             <Bot className="h-4 w-4 mr-1" />
             AI录入
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => aiSuggestionsRef.current?.()}>
             <Sparkles className="h-4 w-4 mr-1" />
             AI建议
           </Button>
@@ -223,7 +224,7 @@ export default function OpportunityDetailPage() {
 
         {/* Right sidebar */}
         <div className="w-72 shrink-0">
-          <AISuggestionsSidebar opportunity={opportunity} />
+          <AISuggestionsSidebar opportunity={opportunity} fetchRef={aiSuggestionsRef} />
         </div>
       </div>
       {/* Stage validation modal */}
